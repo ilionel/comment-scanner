@@ -5,12 +5,11 @@ from comment_scanner.parsers import common
 import sys
 from typing import List, Optional
 import argparse
-import tempfile
 import os
 
 has_magic = True
 try:
-    from magic import magic
+    import magic
 except ImportError:
     has_magic = False
 
@@ -23,6 +22,22 @@ MIME_MAP = {
     'text/x-javascript': js_parser,  # javascript
     'text/x-python': python_parser,  # python/python3
     'text/x-go': c_parser,  # GoLang
+}
+
+# Used when python-magic is unavailable or reports an unsupported MIME type
+# (e.g. Go files are detected as text/plain).
+EXTENSION_MAP = {
+    '.c': 'text/x-c',
+    '.h': 'text/x-c',
+    '.cc': 'text/x-c++',
+    '.cpp': 'text/x-c++',
+    '.cxx': 'text/x-c++',
+    '.hpp': 'text/x-c++',
+    '.cs': 'text/x-c#',
+    '.java': 'text/x-java',
+    '.js': 'text/x-javascript',
+    '.py': 'text/x-python',
+    '.go': 'text/x-go',
 }
 
 
@@ -52,21 +67,16 @@ def fetch_from_file(filename: str, mime: Optional[str] = None) -> List[common.Co
       UnsupportedError: If filename is of an unsupported MIME type.
     """
     if not mime:
-        if not has_magic:
+        mime = EXTENSION_MAP.get(os.path.splitext(filename)[1].lower())
+        if has_magic:
+            detected = _decode(magic.from_file(filename, mime=True))
+            if detected in MIME_MAP or not mime:
+                mime = detected
+        elif not mime:
             raise ImportError('python-magic was not imported')
-        mime = magic.from_file(filename, mime=True)
-        if isinstance(mime, bytes):
-            mime = mime.decode('utf-8')
-
-    if mime not in MIME_MAP:
-        raise UnsupportedError(f"Unsupported MIME type {mime}")
 
     with open(filename, 'r', encoding='utf-8') as code:
-        try:
-            parser = MIME_MAP[mime]
-            return parser.extract_comments(code.read())
-        except common.Error as e:
-            raise ParseError() from e
+        return _extract(code.read(), mime)
 
 
 def fetch_from_str(code: str, mime: Optional[str] = None
@@ -81,19 +91,26 @@ def fetch_from_str(code: str, mime: Optional[str] = None
     Raises:
       UnsupportedError: If code is of an unsupported MIME type.
     """
+    if not mime:
+        if not has_magic:
+            raise ImportError('python-magic was not imported')
+        mime = _decode(magic.from_buffer(code.encode('utf-8'), mime=True))
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        tmp_file.write(code.encode('utf-8'))
-        tmp_file_path = tmp_file.name
+    return _extract(code, mime)
 
-    comments = fetch_from_file(tmp_file_path, mime)
+
+def _decode(mime) -> str:
+    return mime.decode('utf-8') if isinstance(mime, bytes) else mime
+
+
+def _extract(code: str, mime: str) -> List[common.Comment]:
+    if mime not in MIME_MAP:
+        raise UnsupportedError(f"Unsupported MIME type {mime}")
 
     try:
-        os.remove(tmp_file_path)
-    except Exception as e:
-        print("Error removing temporary file:", e)
-
-    return comments
+        return MIME_MAP[mime].extract_comments(code)
+    except common.Error as e:
+        raise ParseError() from e
 
 
 def main():
@@ -108,16 +125,21 @@ def main():
 
     args = parser.parse_args()
 
+    status = 0
     for filename in args.filename:
         try:
-            if args.mime:
-                comments = fetch_from_file(filename, args.mime)
-            else:
-                comments = fetch_from_file(filename)
-            return comments
-        except Error as exc:
-            sys.stderr.write(str(exc))
+            comments = fetch_from_file(filename, args.mime)
+        except (Error, ImportError, OSError) as exc:
+            sys.stderr.write(f'{filename}: {exc!r}\n')
+            status = 1
+            continue
+        for comment in comments:
+            line_no = comment.line_number()
+            if isinstance(line_no, list):
+                line_no = line_no[0]
+            print(f'{filename}:{line_no}:{comment.text()}')
+    return status
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
