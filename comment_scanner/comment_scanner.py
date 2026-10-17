@@ -1,6 +1,7 @@
 from comment_scanner.parsers import python_parser
 from comment_scanner.parsers import js_parser
 from comment_scanner.parsers import c_parser
+from comment_scanner.parsers import swift_parser
 from comment_scanner.parsers import common
 import sys
 from typing import List, Optional
@@ -22,6 +23,7 @@ MIME_MAP = {
     'text/x-javascript': js_parser,  # javascript
     'text/x-python': python_parser,  # python/python3
     'text/x-go': c_parser,  # GoLang
+    'text/x-swift': swift_parser,  # Swift
 }
 
 # Used when python-magic is unavailable or reports an unsupported MIME type
@@ -38,6 +40,7 @@ EXTENSION_MAP = {
     '.js': 'text/x-javascript',
     '.py': 'text/x-python',
     '.go': 'text/x-go',
+    '.swift': 'text/x-swift',
 }
 
 
