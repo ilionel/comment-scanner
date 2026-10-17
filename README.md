@@ -18,6 +18,8 @@ Install comment scanner using pip/pip3.
 pip install comment-scanner
 ```
 
+MIME type detection relies on [python-magic](https://github.com/ahupp/python-magic), which needs the libmagic library (preinstalled on most Linux distributions, `brew install libmagic` on macOS). On Windows, `python-magic-bin` is installed instead and bundles it.
+
 
 ## API Usage
 Comment can be fetched from a source code file or from string text.
@@ -46,9 +48,13 @@ comment_scanner <file_path> [-m or --mime <mime_type>]
 - <file_path>: The path to the code file.
 - -m or --mime <mime_type>: (Optional) The MIME type of the file.
 
+Each comment is printed on its own line as `<file_path>:<line_no>:<comment text>` (for multi-line comments, `line_no` is the first line).
+
 
 ## Mime Type
 Comment scanner uses python-magic module under the hood to find the mime type of a file and it works for most cases.
+
+If python-magic is not installed, or if it reports an unsupported MIME type (Go files, for example, are detected as `text/plain`), the MIME type is deduced from the file extension.
 
 But the user can describe the mime type of the string or file by using `mime` parameter. For supported mime-types, refer to the supported programming laguage section.
 
@@ -107,9 +113,9 @@ we can further process the comments like:
 ...
 comment_texts = []
 for comment in comments:
-    comment_text.append(comment.text())
+    comment_texts.append(comment.text())
 
-print(comment_text)
+print(comment_texts)
 ```
 
 ## Supported Programming Language

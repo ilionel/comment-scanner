@@ -10,7 +10,8 @@ setup(
     name='comment_scanner',
     version='0.3',
     install_requires=[
-        'python-magic-bin>=0.4.14',
+        'python-magic>=0.4.27; platform_system != "Windows"',
+        'python-magic-bin>=0.4.14; platform_system == "Windows"',
     ],
     description='Parse comments from various source code files',
     author='Faiz Alam',

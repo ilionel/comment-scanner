@@ -5,6 +5,8 @@ Works with:
     - c++
     - Objective-C
     - Java
+    - C#
+    - Go
 """
 import re
 from bisect import bisect_left
@@ -22,6 +24,10 @@ def extract_comments(code: str) -> List[common.Comment]:
         multiple lines of code. If a multi-line comment does not terminate
         before EOF is reached, then an exception is raised.
 
+    Comment markers inside literals are ignored: strings and characters with
+    escape sequences, C++ raw strings (R"(...)"), Java text blocks (triple-quoted),
+    C# verbatim strings (@"...") and Go raw strings (`...`).
+
     Note that this doesn't take language-specific preprocessor directives into
     consideration.
 
@@ -34,10 +40,19 @@ def extract_comments(code: str) -> List[common.Comment]:
     """
 
     pattern = r"""
-        (?P<literal> (\"([^\"\n])*\")+) |
+        (?P<literal>
+            (?<!\w)(?:u8|[uUL])?R"(?P<delimiter>[^()\\\s"]{0,16})
+                \([\s\S]*?\)(?P=delimiter)" |
+            \"\"\"[\s\S]*?(?<!\\)\"\"\" |
+            @"(?:[^"]|"")*" |
+            "(?:\\.|[^"\\\n])*" |
+            '(?:\\(?:x[0-9a-fA-F]+|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[0-7]{1,3}|.)
+                |[^'\\\n])' |
+            `[^`]*`
+        ) |
         (?P<single> //(?P<single_content>.*)?$) |
-        (?P<multi> /\*(?P<multi_content>(.|\n)*?)?\*/) |
-        (?P<error> /\*(.*)?)
+        (?P<multi> /\*(?P<multi_content>[\s\S]*?)\*/) |
+        (?P<error> /\*)
     """
 
     compiled = re.compile(pattern, re.VERBOSE | re.MULTILINE)
