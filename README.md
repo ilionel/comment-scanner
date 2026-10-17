@@ -130,6 +130,7 @@ Comment scanner currently supports the following source languages.
 | javascript   | text/x-javascript  |
 | python   | text/x-python |
 | go   | text/x-go |
+| swift   | text/x-swift |
 
 And more on the way!
 ## Contributing

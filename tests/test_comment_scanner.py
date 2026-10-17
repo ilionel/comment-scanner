@@ -38,6 +38,11 @@ class CommentScannerTest(unittest.TestCase):
             comments = comment_scanner.fetch_from_file(path)
         self.assertEqual([c.text() for c in comments], [' one'])
 
+    def test_fetch_from_file_swift_extension(self):
+        path = self.write('main.swift', 'import Foundation\n// one\n')
+        comments = comment_scanner.fetch_from_file(path)
+        self.assertEqual([c.text() for c in comments], [' one'])
+
     def test_parse_error(self):
         with self.assertRaises(scanner.ParseError):
             comment_scanner.fetch_from_str('/* a', mime='text/x-c')
